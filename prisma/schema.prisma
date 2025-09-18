@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model alumnos {
+  id               Int               @id @default(autoincrement())
+  alumno           String            @db.VarChar(100)
+  dni              String            @unique @db.VarChar(20)
+  correo           String            @unique(map: "alumnos_email_key") @db.VarChar(100)
+  telefono         String?           @db.VarChar(20)
+  fecha_ingreso    DateTime          @db.Date
+  matricula_activa Boolean?          @default(true)
+  uo               String            @db.VarChar(8)
+  historial_grupo  historial_grupo[]
+  matricula        matricula[]
+  mensajes         mensajes[]
+  nota             nota[]
+  tutorias         tutorias[]
+}
+
+model asignaturas {
+  id              Int               @id(map: "Asignatura_pkey") @default(autoincrement())
+  nombre          String
+  descripci_n     String?           @map("descripción")
+  cr_ditos        Int               @map("créditos")
+  curso           Int
+  semestre        Int
+  horas_teor_a    Float?            @map("horas_teoría")
+  horas_pr_cticas Float?            @map("horas_prácticas")
+  superada        Boolean
+  matricula       matricula[]
+  tablon_anuncios tablon_anuncios[]
+}
+
+model grupo {
+  id                    Int               @id @default(autoincrement())
+  nombre                String            @db.VarChar(100)
+  clases_expositivas    String?           @db.VarChar(50)
+  practicas_aula        String?           @db.VarChar(50)
+  practicas_laboratorio String?           @db.VarChar(50)
+  tutorias_grupales     String?           @db.VarChar(50)
+  id_profesor           Int
+  profesores            profesores        @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_grupo")
+  historial_grupo       historial_grupo[]
+  matricula             matricula[]
+  pruebas               pruebas[]
+  tablon_anuncios       tablon_anuncios[]
+}
+
+model historial_grupo {
+  id         Int       @id @default(autoincrement())
+  fecha_ini  DateTime  @db.Date
+  fecha_fin  DateTime? @db.Date
+  comentario String?
+  id_alumno  Int
+  id_grupo   Int
+  alumnos    alumnos   @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_historial")
+  grupo      grupo     @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_historial")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model horario_tutoria {
+  id          Int        @id @default(autoincrement())
+  dia         Int
+  hora_ini    DateTime   @db.Time(6)
+  hora_fin    DateTime   @db.Time(6)
+  id_profesor Int
+  profesores  profesores @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_horario")
+}
+
+model matricula {
+  id_alumno               Int
+  id_asignatura           Int
+  curso_academico         Int?
+  convocatorias           Int?        @default(0)
+  nota_final              Float?
+  nota_alfabetica         String?     @db.VarChar(50)
+  nota_actual             Float?
+  evaluacion_diferenciada Boolean?    @default(false)
+  movilidad_erasmus       Boolean?    @default(false)
+  id_grupo                Int?
+  alumnos                 alumnos     @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_matricula")
+  asignaturas             asignaturas @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_matricula")
+  grupo                   grupo?      @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_matricula")
+
+  @@id([id_alumno, id_asignatura], map: "pk_matricula")
+}
+
+model mensajes {
+  id          Int         @id @default(autoincrement())
+  mensaje     String
+  fecha       DateTime    @default(now()) @db.Timestamp(6)
+  emisor      Int
+  id_alumno   Int?
+  id_profesor Int?
+  alumnos     alumnos?    @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_mensaje")
+  profesores  profesores? @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_mensaje")
+}
+
+model nota {
+  id        Int     @id @default(autoincrement())
+  nota      Float
+  id_alumno Int
+  id_prueba Int
+  alumnos   alumnos @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_nota")
+  pruebas   pruebas @relation(fields: [id_prueba], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prueba_nota")
+}
+
+model profesores {
+  id              Int               @id(map: "profesor_pkey") @default(autoincrement())
+  nombre          String            @db.VarChar(100)
+  apellidos       String            @db.VarChar(150)
+  correo          String            @unique(map: "profesor_correo_key") @db.VarChar(120)
+  telefono        String?           @db.VarChar(20)
+  departamento    String?           @db.VarChar(100)
+  grupo           grupo[]
+  horario_tutoria horario_tutoria[]
+  mensajes        mensajes[]
+  tablon_anuncios tablon_anuncios[]
+  tutorias        tutorias[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pruebas {
+  id                 Int       @id(map: "prueba_pkey") @default(autoincrement())
+  nombre             String    @db.VarChar(100)
+  nota_minima        Float?
+  peso               Float?
+  tipo_clase         Int
+  fecha_entrega      DateTime? @db.Date
+  fecha_modificacion DateTime? @db.Date
+  id_asignatura      Int
+  nota               nota[]
+  grupo              grupo     @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_prueba")
+}
+
+model tablon_anuncios {
+  id            Int          @id @default(autoincrement())
+  titulo        String       @db.VarChar(150)
+  contenido     String
+  id_asignatura Int?
+  id_grupo      Int?
+  id_profesor   Int?
+  asignaturas   asignaturas? @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_anuncio")
+  grupo         grupo?       @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_anuncio")
+  profesores    profesores?  @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_anuncio")
+}
+
+model tutorias {
+  id          Int        @id @default(autoincrement())
+  motivo      String     @db.VarChar(200)
+  fecha       DateTime   @db.Date
+  hora_ini    DateTime   @db.Time(6)
+  hora_fin    DateTime   @db.Time(6)
+  id_profesor Int
+  id_alumno   Int
+  alumnos     alumnos    @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno")
+  profesores  profesores @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor")
+}
