@@ -6,8 +6,8 @@ require('dotenv').config();
 
 // Importar rutas
 //..............
-//........
-
+const registerRoute = require('./routes/registerRoute.js')
+const newPasswordRoute = require('./routes/newPasswordRoute.js')
 
 const app = express();
 
@@ -15,6 +15,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+//Uso de rutas importadas
+app.use("/register",registerRoute)
+app.use("/account",newPasswordRoute)
 
 // -------------------- Middleware de error --------------------
 // Middleware para manejar rutas no encontradas

@@ -17,6 +17,7 @@ model alumnos {
   fecha_ingreso    DateTime          @db.Date
   matricula_activa Boolean?          @default(true)
   uo               String            @db.VarChar(8)
+  contraseña       String            @db.VarChar(40)
   historial_grupo  historial_grupo[]
   matricula        matricula[]
   mensajes         mensajes[]
@@ -45,12 +46,11 @@ model grupo {
   practicas_aula        String?           @db.VarChar(50)
   practicas_laboratorio String?           @db.VarChar(50)
   tutorias_grupales     String?           @db.VarChar(50)
-  id_profesor           Int
-  profesores            profesores        @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_grupo")
   historial_grupo       historial_grupo[]
   matricula             matricula[]
   pruebas               pruebas[]
   tablon_anuncios       tablon_anuncios[]
+   @@unique([clases_expositivas, practicas_aula, practicas_laboratorio, tutorias_grupales])
 }
 
 model historial_grupo {
@@ -77,14 +77,15 @@ model horario_tutoria {
 model matricula {
   id_alumno               Int
   id_asignatura           Int
-  curso_academico         Int?
+  curso_academico         String?     @db.VarChar(9)
   convocatorias           Int?        @default(0)
   nota_final              Float?
   nota_alfabetica         String?     @db.VarChar(50)
   nota_actual             Float?
-  evaluacion_diferenciada Boolean?    @default(false)
-  movilidad_erasmus       Boolean?    @default(false)
+  evaluacion_diferenciada String     @db.VarChar(2)
+  movilidad_erasmus       String     @db.VarChar(2)
   id_grupo                Int?
+  matriculas              Int
   alumnos                 alumnos     @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_matricula")
   asignaturas             asignaturas @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_matricula")
   grupo                   grupo?      @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_matricula")
@@ -119,7 +120,6 @@ model profesores {
   correo          String            @unique(map: "profesor_correo_key") @db.VarChar(120)
   telefono        String?           @db.VarChar(20)
   departamento    String?           @db.VarChar(100)
-  grupo           grupo[]
   horario_tutoria horario_tutoria[]
   mensajes        mensajes[]
   tablon_anuncios tablon_anuncios[]
