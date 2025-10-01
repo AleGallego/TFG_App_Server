@@ -17,12 +17,13 @@ model alumnos {
   fecha_ingreso    DateTime          @db.Date
   matricula_activa Boolean?          @default(true)
   uo               String            @db.VarChar(8)
-  contraseña       String            @db.VarChar(40)
+  contraseña       String            @db.VarChar(400)
   historial_grupo  historial_grupo[]
   matricula        matricula[]
   mensajes         mensajes[]
   nota             nota[]
   tutorias         tutorias[]
+  PasswordResetToken passwordresettoken[]
 }
 
 model asignaturas {
@@ -163,3 +164,14 @@ model tutorias {
   alumnos     alumnos    @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno")
   profesores  profesores @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor")
 }
+
+model passwordresettoken {
+  id          Int      @id @default(autoincrement())
+  id_alumno   Int      @unique
+  tokenHash   String   // Guardamos el hash del token, nunca en plano
+  expiresAt   DateTime // Fecha de caducidad
+  createdAt   DateTime @default(now())
+  alumnos     alumnos  @relation(fields: [id_alumno], references: [id], onDelete: Cascade)
+  @@index([id_alumno]) // para buscar rápido por usuario
+}
+

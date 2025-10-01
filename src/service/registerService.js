@@ -65,25 +65,60 @@ async function registrarGrupo(secondTable) {
 }
 
 
+// Función para validar un alumno   (IR AMPLIANDO)
+function validateAlumno(a) {
+    const errores = [];
+    if (!a.uo || a.uo.length !== 8) errores.push("UO debe tener 8 caracteres");
+    if (!a.correo || !/^[\w-.]+@[\w-]+\.[a-z]{2,4}$/i.test(a.correo)) errores.push("Correo inválido");
+    if (!a.dni || !/^\d{8}[A-Z]$/i.test(a.dni)) errores.push("DNI inválido");
+    return errores;
+}
+
+
+
+
 const registerService = {
 
     registerUsers: async (data) => {
         const tablas = excelToJson(data)
         const alumnos = tableMaps.mapAlumnos(tablas.Alumnos)
+        const alumnosValidados = [];
+        const alumnosInvalidos = [];
 
-        const nuevosAlumnos = await prisma.alumnos.createMany({ // Solo añadir usuarios que no estén ya
-            data: alumnos,
+        // Validar alumnos
+        alumnos.forEach(a => {
+            const errores = validateAlumno(a);
+            if (errores.length) alumnosInvalidos.push({ alumno: a.alumno, errores });
+            else alumnosValidados.push(a);
+        });
+
+        if (alumnosValidados.length === 0) {
+            return {
+                success: false,
+                message: `No se pudo insertar ningún alumno. Todos los registros tienen errores.`,
+                invalidos: alumnosInvalidos
+            };
+        }
+
+        // Insertar solo los que pasan validación
+        const nuevosAlumnos = await prisma.alumnos.createMany({
+            data: alumnosValidados,
             skipDuplicates: true
-        })
+        });
 
         // Recuperar IDs generados
         const alumnosID = await prisma.alumnos.findMany({
-            where: { dni: { in: alumnos.map(a => a.dni) } },
+            where: { dni: { in: alumnosValidados.map(a => a.dni) } },
             select: { id: true, dni: true }
         });
 
+
         await registrarMatricula(tablas, alumnosID) // Solo lo debería de hacer para los usuarios que no estén ya matriculados
-        return nuevosAlumnos
+        return {
+            success: true,
+            message: `Se han insertado ${nuevosAlumnos.count} alumnos correctamente. ${alumnosInvalidos.length ? alumnosInvalidos.length + " alumnos no se pudieron insertar." : ""}`,
+            invalidos: alumnosInvalidos
+        };
     }
 }
 module.exports = registerService

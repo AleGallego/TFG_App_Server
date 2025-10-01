@@ -11,17 +11,17 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-async function sendMailPassword(toData,subjectData,textData,htmlData) {
+async function sendMailPassword(toData,resetLink) {
 
-        const info = await transporter.sendMail({
-            from: '"Maddison Foo Koch" <maddison53@ethereal.email>',
-            to: toData,
-            subject: subjectData,
-            text: textData,
-            html: htmlData,
+    const info = await transporter.sendMail({
+        from: '"Maddison Foo Koch" <maddison53@ethereal.email>',
+        to: toData,
+        subject: "Restablece tu contraseña",
+        text: `Pulsa en este link para cambiar tu contraseña: ${resetLink}`,
+        html: `<p>Pulsa en este link para cambiar tu contraseña:</p><a href="${resetLink}">${resetLink}</a>`,
         });
 
-        console.log("Message sent:", info.messageId);
+console.log("Message sent:", info.messageId);
 
 }
 
