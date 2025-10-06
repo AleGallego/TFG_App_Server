@@ -7,8 +7,7 @@ const { excelToJson } = require('../utils/jsonConverter.js');
 // ------------------ REGISTRO DE MATRÍCULAS Y DETECCIÓN DE CAMBIOS DE GRUPO ------------------
 async function registrarMatricula(tablas, alumnosId, idAsignatura) {
     // Registrar/grabar grupos
-    const gruposID = await registrarGrupo(tablas.Alumnos);
-
+    const gruposID = await registrarGrupo(tablas.Alumnos, idAsignatura.id);
     // Mapear las matrículas nuevas desde el Excel
     const matriculasExcel = tableMaps.mapMatricula(
         tablas.Asignatura,
@@ -54,37 +53,115 @@ async function registrarMatricula(tablas, alumnosId, idAsignatura) {
 }
 
 
-async function registrarGrupo(secondTable) {
-    const grupos = tableMaps.mapGrupo(secondTable)
+async function registrarGrupo(secondTable, idAsignatura) {
+
+    const clasesID = await registrarClases(secondTable, idAsignatura);
+
+    // Mapear grupos únicos
+    const grupos = tableMaps.mapGrupo(secondTable,idAsignatura);
+    if (!grupos || grupos.length === 0) return { gruposID: [], clasesID };
+    const gruposParaInsert = grupos.map(g => ({ nombre: g.key ,id_asignatura: g.id_asignatura}));
 
     try {
         await prisma.grupo.createMany({
-            data: grupos,
+            data: gruposParaInsert,
             skipDuplicates: true
-        })
+        });
     } catch (error) {
-        console.log(error)
+        console.log(error);
+    }
+
+    // 4) Recuperar los ids de los grupos recién insertados (por nombre = key)
+    const gruposID = await prisma.grupo.findMany({
+        where: { nombre: { in: gruposParaInsert.map(g => g.nombre) } },
+        select: { id: true, nombre: true }
+    });
+
+    // Crear relaciones grupo-clases
+    await asociarGrupoClases(grupos, gruposID, clasesID);
+
+    return gruposID;
+}
+
+async function registrarClases(secondTable, idAsignatura) {
+    const clases = tableMaps.mapClases(secondTable, idAsignatura);
+
+    try {
+        await prisma.clases.createMany({
+            data: clases,
+            skipDuplicates: true
+        });
+    } catch (error) {
+        console.log(error);
     }
 
     // Recuperar IDs generados
-    const gruposID = await prisma.grupo.findMany({
+    const clasesID = await prisma.clases.findMany({
         where: {
-            OR: grupos.map(g => ({
-                clases_expositivas: g.clases_expositivas,
-                practicas_aula: g.practicas_aula,
-                practicas_laboratorio: g.practicas_laboratorio,
-                tutorias_grupales: g.tutorias_grupales,
+            OR: clases.map(c => ({
+                nombre: c.nombre,
+                tipo: c.tipo,
+                id_asignatura: c.id_asignatura
             }))
         },
         select: {
             id: true,
-            clases_expositivas: true,
-            practicas_aula: true,
-            practicas_laboratorio: true,
-            tutorias_grupales: true,
+            nombre: true,
+            tipo: true,
+            id_asignatura: true
         }
     });
-    return gruposID
+
+    return clasesID;
+}
+
+
+async function asociarGrupoClases(gruposUnicos, gruposID, clasesID, ) {
+    const relaciones = []; // { id_grupo, id_clase, id_asignatura }
+
+    const tiposOrden = [
+        "Clases Expositivas",
+        "Prácticas de Aula/Semina",
+        "Prácticas de Laboratorio",
+        "Tutorías Grupales"
+    ];
+    // Para cada grupo único, buscamos el grupoId y asociamos las clases (si existen)
+    for (const g of gruposUnicos) {
+        const grupoEncontrado = gruposID.find(gr => gr.nombre === g.key);
+        if (!grupoEncontrado) continue; // no debería ocurrir, pero por seguridad
+
+        // g.clasesArr debe tener las 4 posiciones correspondientes al orden de tiposOrden
+        // si mapGrupo no devuelve clasesArr, podemos reconstruirlo partiendo de g.key.split('|')
+        const clasesArr = g.clasesArr || (g.key ? g.key.split("|") : []);
+
+        tiposOrden.forEach((tipo, idx) => {
+            const nombreClase = clasesArr[idx];
+            if (!nombreClase) return; // si el campo venía vacío => no asociamos
+
+            const claseMatch = clasesID.find(c =>
+                c.tipo === tipo &&
+                c.nombre === nombreClase
+            );
+
+            if (claseMatch) {
+                relaciones.push({
+                    id_grupo: grupoEncontrado.id,
+                    id_clases: claseMatch.id
+                });
+            }
+        });
+    }
+
+    if (relaciones.length > 0) {
+        try {
+            await prisma.grupo_clases.createMany({
+                data: relaciones,
+                skipDuplicates: true
+            });
+        } catch (err) {
+            console.error("Error createMany grupo_clases:", err);
+        }
+    }
 }
 
 
@@ -159,6 +236,7 @@ const registerService = {
             select: { id: true, dni: true }
         });
 
+        // Obtener el id de la asignatura
         const Asignatura = tablas.Asignatura.find(f => f.clave === "Asignatura:").valor
         const idAsignatura = await prisma.asignaturas.findFirst({
             where: {

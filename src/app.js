@@ -8,7 +8,7 @@ require('dotenv').config();
 //..............
 const registerRoute = require('./routes/registerRoute.js')
 const newPasswordRoute = require('./routes/newPasswordRoute.js')
-
+const profesorAsignaturasRouter = require('./routes/profesorAsignaturasRouter.js')
 const app = express();
 
 // -------------------- Middlewares globales --------------------
@@ -19,6 +19,7 @@ app.use(morgan('dev'));
 //Uso de rutas importadas
 app.use("/register",registerRoute)
 app.use("/account",newPasswordRoute)
+app.use("/impartir",profesorAsignaturasRouter)
 
 // -------------------- Middleware de error --------------------
 // Middleware para manejar rutas no encontradas

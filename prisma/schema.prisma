@@ -9,20 +9,20 @@ datasource db {
 }
 
 model alumnos {
-  id               Int               @id @default(autoincrement())
-  alumno           String            @db.VarChar(100)
-  dni              String            @unique @db.VarChar(20)
-  correo           String            @unique(map: "alumnos_email_key") @db.VarChar(100)
-  telefono         String?           @db.VarChar(20)
-  fecha_ingreso    DateTime          @db.Date
-  matricula_activa Boolean?          @default(true)
-  uo               String            @db.VarChar(8)
-  contraseña       String            @db.VarChar(400)
-  historial_grupo  historial_grupo[]
-  matricula        matricula[]
-  mensajes         mensajes[]
-  nota             nota[]
-  tutorias         tutorias[]
+  id                 Int                  @id @default(autoincrement())
+  alumno             String               @db.VarChar(100)
+  dni                String               @unique @db.VarChar(20)
+  correo             String               @unique(map: "alumnos_email_key") @db.VarChar(100)
+  telefono           String?              @db.VarChar(20)
+  fecha_ingreso      DateTime             @db.Date
+  matricula_activa   Boolean?             @default(true)
+  uo                 String               @db.VarChar(8)
+  contraseña        String               @db.VarChar(400)
+  historial_grupo    historial_grupo[]
+  matricula          matricula[]
+  mensajes           mensajes[]
+  nota               nota[]
+  tutorias           tutorias[]
   PasswordResetToken passwordresettoken[]
 }
 
@@ -38,20 +38,46 @@ model asignaturas {
   superada        Boolean
   matricula       matricula[]
   tablon_anuncios tablon_anuncios[]
+  clases          clases[]
+
+  pruebas pruebas[] @relation(map: "fk_asignatura_prueba")
+
+  grupo grupo[]
 }
 
 model grupo {
-  id                    Int               @id @default(autoincrement())
-  nombre                String            @db.VarChar(100)
-  clases_expositivas    String?           @db.VarChar(50)
-  practicas_aula        String?           @db.VarChar(50)
-  practicas_laboratorio String?           @db.VarChar(50)
-  tutorias_grupales     String?           @db.VarChar(50)
-  historial_grupo       historial_grupo[]
-  matricula             matricula[]
-  pruebas               pruebas[]
-  tablon_anuncios       tablon_anuncios[]
-   @@unique([clases_expositivas, practicas_aula, practicas_laboratorio, tutorias_grupales])
+  id              Int               @id @default(autoincrement())
+  nombre          String
+  id_asignatura   Int
+  matricula       matricula[]
+  grupo_clases    grupo_clases[]
+  historial_grupo historial_grupo[] @relation(map: "fk_grupo_historial")
+  asignatura      asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
+  @@unique([nombre, id_asignatura])
+  tablon_anuncios tablon_anuncios[] @relation(map: "fk_grupo_anuncio")
+}
+
+model clases {
+  id            Int            @id @default(autoincrement())
+  tipo          String
+  nombre        String
+  id_asignatura Int
+  id_profesor   Int?
+  asignatura    asignaturas    @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
+  profesores    profesores?    @relation(fields: [id_profesor], references: [id], onDelete: Cascade)
+  grupo_clases  grupo_clases[]
+
+  @@unique([tipo, nombre, id_asignatura])
+}
+
+model grupo_clases {
+  id_grupo      Int
+  id_clases     Int
+  grupo         grupo  @relation(fields: [id_grupo], references: [id], onDelete: Cascade)
+  clases        clases @relation(fields: [id_clases], references: [id], onDelete: Cascade)
+
+  @@id([id_grupo, id_clases])
+  @@map("grupo_clases")
 }
 
 model historial_grupo {
@@ -83,8 +109,8 @@ model matricula {
   nota_final              Float?
   nota_alfabetica         String?     @db.VarChar(50)
   nota_actual             Float?
-  evaluacion_diferenciada String     @db.VarChar(2)
-  movilidad_erasmus       String     @db.VarChar(2)
+  evaluacion_diferenciada String      @db.VarChar(2)
+  movilidad_erasmus       String      @db.VarChar(2)
   id_grupo                Int?
   matriculas              Int
   alumnos                 alumnos     @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_matricula")
@@ -121,24 +147,26 @@ model profesores {
   correo          String            @unique(map: "profesor_correo_key") @db.VarChar(120)
   telefono        String?           @db.VarChar(20)
   departamento    String?           @db.VarChar(100)
+  contraseña     String            @db.VarChar(400)
   horario_tutoria horario_tutoria[]
   mensajes        mensajes[]
   tablon_anuncios tablon_anuncios[]
   tutorias        tutorias[]
+  clases clases[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model pruebas {
-  id                 Int       @id(map: "prueba_pkey") @default(autoincrement())
-  nombre             String    @db.VarChar(100)
+  id                 Int         @id(map: "prueba_pkey") @default(autoincrement())
+  nombre             String      @db.VarChar(100)
   nota_minima        Float?
   peso               Float?
   tipo_clase         Int
-  fecha_entrega      DateTime? @db.Date
-  fecha_modificacion DateTime? @db.Date
+  fecha_entrega      DateTime?   @db.Date
+  fecha_modificacion DateTime?   @db.Date
   id_asignatura      Int
   nota               nota[]
-  grupo              grupo     @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_prueba")
+  asignaturas        asignaturas @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_prueba")
 }
 
 model tablon_anuncios {
@@ -166,12 +194,12 @@ model tutorias {
 }
 
 model passwordresettoken {
-  id          Int      @id @default(autoincrement())
-  id_alumno   Int      @unique
-  tokenHash   String   // Guardamos el hash del token, nunca en plano
-  expiresAt   DateTime // Fecha de caducidad
-  createdAt   DateTime @default(now())
-  alumnos     alumnos  @relation(fields: [id_alumno], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  id_alumno Int      @unique
+  tokenHash String // Guardamos el hash del token, nunca en plano
+  expiresAt DateTime // Fecha de caducidad
+  createdAt DateTime @default(now())
+  alumnos   alumnos  @relation(fields: [id_alumno], references: [id], onDelete: Cascade)
+
   @@index([id_alumno]) // para buscar rápido por usuario
 }
-
