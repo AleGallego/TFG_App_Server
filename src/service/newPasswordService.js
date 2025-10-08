@@ -1,7 +1,7 @@
 const sendMailPassword = require("../utils/nodeMailer.js")
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
-const prisma = require("../prismaClient.js");
+
 
 const newPasswordService = {
 
@@ -35,18 +35,17 @@ const newPasswordService = {
         const resetLink = `https://localhost:3000/account/reset-password?token=${token}`; // Este link apunta a una vista del frontend (REACT)
         await sendMailPassword(email, resetLink,);
         return {
-                        success: true,
-                        message: "Recibirás un enlace para restablecer tu contraseña."
-                }
+            success: true,
+            message: "Recibirás un enlace para restablecer tu contraseña."
+        }
 
     },
 
     async createUserPassword(token, newPassword) {
 
         const resetRecords = await prisma.passwordresettoken.findMany({ include: { alumnos: true } });
-        
+
         const resetToken = resetRecords.find(r => bcrypt.compareSync(token, r.tokenHash));
-        console.log("eeeeeeeeeeeeeeeee: ",resetToken)
         if (!resetToken) return { success: false, error: "Token inválido" };
         if (resetToken.expiresAt < new Date()) return { success: false, error: "Token expirado" };
         const hashedPassword = await bcrypt.hash(newPassword, 10);

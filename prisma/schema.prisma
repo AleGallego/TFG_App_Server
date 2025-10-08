@@ -54,7 +54,6 @@ model grupo {
   historial_grupo historial_grupo[] @relation(map: "fk_grupo_historial")
   asignatura      asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
   @@unique([nombre, id_asignatura])
-  tablon_anuncios tablon_anuncios[] @relation(map: "fk_grupo_anuncio")
 }
 
 model clases {
@@ -68,6 +67,7 @@ model clases {
   grupo_clases  grupo_clases[]
 
   @@unique([tipo, nombre, id_asignatura])
+  tablon_anuncios tablon_anuncios[] @relation(map: "fk_clases_anuncio")
 }
 
 model grupo_clases {
@@ -174,10 +174,11 @@ model tablon_anuncios {
   titulo        String       @db.VarChar(150)
   contenido     String
   id_asignatura Int?
-  id_grupo      Int?
+  id_clase      Int?
   id_profesor   Int?
+  createdAt     DateTime     @default(now()) // <-- fecha de creación automática
   asignaturas   asignaturas? @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_anuncio")
-  grupo         grupo?       @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_anuncio")
+  clases        clases?      @relation(fields: [id_clase], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clases_anuncio")
   profesores    profesores?  @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor_anuncio")
 }
 
