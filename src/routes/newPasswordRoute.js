@@ -6,7 +6,6 @@ const newPasswordService = require('../service/newPasswordService.js')
 newPasswordRoute.post('/generatePass', async function (req, res) {
         const { correo } = req.body;
         if (!correo) return res.status(422).json({ success: false, error: "Correo requerido" });
-
         try {
                 const result = await newPasswordService.sendEmailPassword(correo);
                 if (!result.success) return res.status(400).json(result);
@@ -35,6 +34,5 @@ newPasswordRoute.post('/reset-password', async function (req, res) {
                 console.error(err);
         }
 })
-
 
 module.exports = newPasswordRoute

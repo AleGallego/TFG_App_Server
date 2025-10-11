@@ -4,7 +4,7 @@ const tablonAnunciosService = require('../service/tablonAnunciosService')
 const requireRole = require('../middlewares/rolesMiddleware');
 
 
-tablonAnunciosRoute.post('/profesor/publicar', requireRole('alumno'), async function (req, res) {
+tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async function (req, res) {
     try {
         const { titulo, contenido, id_asignatura, id_clase } = req.body;
         const id_profesor = req.user.id; // viene del token JWT
