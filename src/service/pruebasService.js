@@ -1,6 +1,6 @@
 const prisma = require("../prismaClient.js");
 
-const profesorTareasService = {
+const tareasService = {
     nuevaPrueba: async (nombre, nota_minima, peso, fecha_entrega, id_clase) => {
         try {
             // Se comprueba si la clase existe
@@ -45,6 +45,30 @@ const profesorTareasService = {
 
         return tareaActualizada;
     },
+
+    obtenerTareasProfesor: async (id_profesor) => {
+        try {
+            const tareas = await prisma.pruebas.findMany({
+                where: {
+                    clases: {
+                        id_profesor: parseInt(id_profesor)
+                    }
+                },
+                include: {
+                    clases: {
+                        select: { nombre: true }
+                    }
+                },
+                orderBy: { fecha_entrega: 'asc' }
+            });
+
+            return tareas;
+        } catch (error) {
+            console.error('Error en obtenerTareasProfesor:', error);
+            throw error;
+        }
+    }
+
 };
 
-module.exports = profesorTareasService;
+module.exports = tareasService;

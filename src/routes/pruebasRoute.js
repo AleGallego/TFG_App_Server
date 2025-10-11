@@ -1,9 +1,9 @@
 const express = require('express')
-const profesorTareasRoute = express.Router()
-const profesorTareasService = require('../service/profesorTareasService')
+const TareasRoute = express.Router()
+const tareasService = require('../service/pruebasService')
 
 
-profesorTareasRoute.post("/publicar/tarea", async function (req, res) {
+TareasRoute.post("/publicar", requireRole('profesor'),async function (req, res) {
     try {
         const { nombre, nota_minima, peso, fecha_entrega, id_clase } = req.body
         // --- Validaciones básicas ---
@@ -20,7 +20,7 @@ profesorTareasRoute.post("/publicar/tarea", async function (req, res) {
         }
 
         // Llamada al servicio
-        const nuevaTarea = await profesorTareasService.nuevaPrueba(nombre, nota_minima, peso, fecha_entrega, id_clase);
+        const nuevaTarea = await tareasService.nuevaPrueba(nombre, nota_minima, peso, fecha_entrega, id_clase);
 
         return res.status(201).json({ success: true, message: "Tarea publicada correctamente.", data: nuevaTarea });
     } catch (error) {
@@ -34,7 +34,7 @@ profesorTareasRoute.post("/publicar/tarea", async function (req, res) {
 
 })
 
-profesorTareasRoute.put("/modificar/tarea/:id", async (req, res) => {
+TareasRoute.put("/modificar/:id", requireRole('profesor'),async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, nota_minima, peso, fecha_entrega } = req.body;
@@ -52,7 +52,7 @@ profesorTareasRoute.put("/modificar/tarea/:id", async (req, res) => {
             return res.status(400).json({ success: false, message: "El campo 'nota_minima' debe ser un número positivo.", data: [] });
         }
 
-        const tareaActualizada = await profesorTareasService.modificarPrueba(parseInt(id), nombre, nota_minima, peso, fecha_entrega);
+        const tareaActualizada = await tareasService.modificarPrueba(parseInt(id), nombre, nota_minima, peso, fecha_entrega);
 
         return res.status(200).json({ success: true, message: "Tarea modificada correctamente.", data: tareaActualizada });
 
@@ -61,3 +61,21 @@ profesorTareasRoute.put("/modificar/tarea/:id", async (req, res) => {
         return res.status(500).json({ success: false, message: error.message || "Error interno del servidor al modificar la tarea.", data: [] });
     }
 });
+
+TareasRoute.get('/', requireRole('profesor'),async function (req, res) {
+    try {
+        const { id } = req.user;
+        const tareas = await tareasService.obtenerTareasProfesor(id);
+        if (!tareas || tareas.length === 0) {
+            return res.status(200).json({ success: true, message: 'El profesor no tiene tareas publicadas', data: [] });
+        }
+
+        return res.status(200).json({ success: true, message: 'Tareas obtenidas correctamente', data: tareas });
+
+    } catch (error) {
+        console.error('Error al obtener las tareas del profesor:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor', data: [] });
+    }
+});
+
+module.exports = TareasRoute
