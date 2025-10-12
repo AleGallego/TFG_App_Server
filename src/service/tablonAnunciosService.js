@@ -16,8 +16,6 @@ const tablonAnunciosService = {
                 return { success: false, message: 'Asignatura o clase no válida' };
             }
 
-
-
             // Crear la entrada en el tablón
             const nuevaEntrada = await prisma.tablon_anuncios.create({
                 data: {

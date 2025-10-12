@@ -59,7 +59,7 @@ model clases {
   nombre          String
   id_asignatura   Int
   id_profesor     Int?
-  asignatura      asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
+  asignaturas      asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
   profesores      profesores?       @relation(fields: [id_profesor], references: [id], onDelete: Cascade)
   grupo_clases    grupo_clases[]
   tablon_anuncios tablon_anuncios[] @relation(map: "fk_clases_anuncio")

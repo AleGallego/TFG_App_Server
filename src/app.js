@@ -34,8 +34,8 @@ app.use(morgan('dev'));
 app.use("/register", authMiddleware, requireRole("profesor"), registerRoute)
 app.use("/login", loginRoute)
 app.use("/account", newPasswordRoute)
-app.use("/impartir", authMiddleware, requireRole("profesor"), profesorAsignaturasRouter)
-app.use("/asignaturas", authMiddleware, requireRole("alumno"), alumnoAsignaturasRouter)
+app.use("/asignaturas-p", authMiddleware, requireRole("profesor"), profesorAsignaturasRouter)
+app.use("/asignaturas-a", authMiddleware, requireRole("alumno"), alumnoAsignaturasRouter)
 app.use("/anuncios", authMiddleware, tablonAnunciosRoute)
 app.use("/pruebas", authMiddleware,pruebasRoute)
 

@@ -8,11 +8,6 @@ tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async fu
     try {
         const { titulo, contenido, id_asignatura, id_clase } = req.body;
         const id_profesor = req.user.id; // viene del token JWT
-        console.log("Titulo: ", titulo)
-        console.log("contenido: ", contenido)
-        console.log("id_asignatura: ", id_asignatura)
-        console.log("id_clase: ", id_clase)
-        console.log("id_profesor: ", id_profesor)
         // Comprobaciones básicas
         if (!titulo || !contenido || !id_asignatura || !id_clase) {
             return res.status(422).json({
@@ -29,10 +24,7 @@ tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async fu
 
         res.status(201).json(result);
     } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor al crear la publicación',
-        });
+        res.status(500).json({success: false,message: 'Error interno del servidor al crear la publicación',});
     }
 
 
