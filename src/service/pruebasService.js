@@ -156,7 +156,6 @@ const tareasService = {
         }
     }
 
-
 };
 
 module.exports = tareasService;
