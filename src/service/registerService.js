@@ -1,6 +1,6 @@
 const prisma = require('../prismaClient.js');
 const tableMaps = require('../utils/tableMaps.js')
-const { excelToJson } = require('../utils/jsonConverter.js');
+const { excelToJsonRegister } = require('../utils/jsonConverter.js');
 
 
 
@@ -51,7 +51,6 @@ async function registrarMatricula(tablas, alumnosId, idAsignatura) {
 
     return { nuevasMatriculas, cambiosGrupo };
 }
-
 
 async function registrarGrupo(secondTable, idAsignatura) {
 
@@ -115,7 +114,6 @@ async function registrarClases(secondTable, idAsignatura) {
     return clasesID;
 }
 
-
 async function asociarGrupoClases(gruposUnicos, gruposID, clasesID, ) {
     const relaciones = []; // { id_grupo, id_clase, id_asignatura }
 
@@ -164,7 +162,6 @@ async function asociarGrupoClases(gruposUnicos, gruposID, clasesID, ) {
     }
 }
 
-
 // Función para validar un alumno   (IR AMPLIANDO)
 function validateAlumno(a) {
     const errores = [];
@@ -173,7 +170,6 @@ function validateAlumno(a) {
     if (!a.dni || !/^\d{8}[A-Z]$/i.test(a.dni)) errores.push("DNI inválido");
     return errores;
 }
-
 
 async function alumnosDesmatriculados(alumnosValidados, idAsignatura) {
 
@@ -204,7 +200,7 @@ async function alumnosDesmatriculados(alumnosValidados, idAsignatura) {
 const registerService = {
 
     registerUsers: async (data) => {
-        const tablas = excelToJson(data)
+        const tablas = excelToJsonRegister(data)
         const alumnos = tableMaps.mapAlumnos(tablas.Alumnos)
         const alumnosValidados = [];
         const alumnosInvalidos = [];

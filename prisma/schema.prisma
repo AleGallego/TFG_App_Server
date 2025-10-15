@@ -114,7 +114,7 @@ model matricula {
   superada                Boolean     @default(false)
   alumnos                 alumnos     @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_matricula")
   asignaturas             asignaturas @relation(fields: [id_asignatura], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignatura_matricula")
-  grupo                   grupo?      @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_grupo_matricula")
+  grupo                   grupo?      @relation(fields: [id_grupo], references: [id], onDelete: NoAction, onUpdate: Cascade, map: "fk_grupo_matricula")
 
   @@id([id_alumno, id_asignatura], map: "pk_matricula")
 }
@@ -165,7 +165,7 @@ model pruebas {
   fecha_modificacion DateTime? @db.Date
   id_clase           Int
   nota               nota[]
-  clases             clases    @relation(fields: [id_clase], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clase_prueba")
+  clases             clases    @relation(fields: [id_clase], references: [id], onDelete: NoAction, onUpdate: Cascade, map: "fk_clase_prueba")
 }
 
 model tablon_anuncios {

@@ -1,4 +1,3 @@
-const prisma = require('../prismaClient.js');
 const tableMaps = {
 
 
@@ -14,31 +13,25 @@ const tableMaps = {
         }));
     },
 
+    mapGrupo: (secondTable, idAsignatura) => {
+        const grupos = secondTable
+            .map(a => {
+                const ce = a["Clases Expositivas"] || "";
+                const pa = a["Prácticas de Aula/Semina"] || "";
+                const pl = a["Prácticas de Laboratorio"] || "";
+                const tg = a["Tutorías Grupales"] || "";
 
-mapGrupo: (secondTable,idAsignatura) => {
-    const grupos = secondTable
-        .map(a => {
-            const ce = a["Clases Expositivas"] || "";
-            const pa = a["Prácticas de Aula/Semina"] || "";
-            const pl = a["Prácticas de Laboratorio"] || "";
-            const tg = a["Tutorías Grupales"] || "";
+                if (!ce && !pa && !pl && !tg) return null;
 
-            if (!ce && !pa && !pl && !tg) return null;
+                const key = `${ce}|${pa}|${pl}|${tg}`;
+                return { key, nombre: key, id_asignatura: idAsignatura, clasesArr: [ce, pa, pl, tg] };
+            })
+            .filter(Boolean);
 
-            const key = `${ce}|${pa}|${pl}|${tg}`;
-            return { key, nombre: key,id_asignatura:idAsignatura, clasesArr: [ce, pa, pl, tg] };
-        })
-        .filter(Boolean);
-
-    // quitar duplicados por key
-    const unique = Array.from(new Map(grupos.map(g => [g.key, g])).values());
-    return unique; // [{ key, nombre, clasesArr }, ...]
-},
-
-
-
-
-
+        // quitar duplicados por key
+        const unique = Array.from(new Map(grupos.map(g => [g.key, g])).values());
+        return unique; // [{ key, nombre, clasesArr }, ...]
+    },
 
     mapClases: (secondTable, idAsignatura) => {
         const columnas = [
@@ -71,40 +64,54 @@ mapGrupo: (secondTable,idAsignatura) => {
         return uniqueClases;
     },
 
+    mapMatricula: (firstTable, secondTable, alumnosID, idAsignatura, gruposID) => {
+        return secondTable.map(a => {
+            // Buscar el ID del alumno
+            const alumno = alumnosID.find(x => x.dni === a["DNI"]);
+            if (!alumno) return null;
 
+            // Generar la "key" igual que en mapGrupo
+            const key = `${a["Clases Expositivas"] || ""}|${a["Prácticas de Aula/Semina"] || ""}|${a["Prácticas de Laboratorio"] || ""}|${a["Tutorías Grupales"] || ""}`;
 
+            // Buscar el grupo por esa key (nombre en la BD)
+            const grupo = gruposID.find(g => g.nombre === key);
 
+            return {
+                id_alumno: alumno.id,
+                id_asignatura: idAsignatura,
+                curso_academico: firstTable.find(f => f.clave === "Curso Académico:")?.valor || "",
+                convocatorias: a["Convocatorias"],
+                nota_actual: 0,
+                evaluacion_diferenciada: a["Evaluación Diferenciada"],
+                movilidad_erasmus: a["Movilidad Erasmus"],
+                id_grupo: grupo ? grupo.id : null, // Erasmus o sin grupo
+                matriculas: a["Matrículas"]
+            };
+        }).filter(m => m !== null);
+    },
 
+    mapNotas: (alumnos, tabla, idPrueba) => {
+        // Crear mapa UO → ID de los alumnos encontrados
+        const mapUoToId = new Map(alumnos.map(a => [a.uo, a.id]));
 
-mapMatricula: (firstTable, secondTable, alumnosID, idAsignatura, gruposID) => {
-    return secondTable.map(a => {
-        // Buscar el ID del alumno
-        const alumno = alumnosID.find(x => x.dni === a["DNI"]);
-        if (!alumno) return null;
+        const listaNotas = [];
+        const uosNoEncontrados = [];
 
-        // Generar la "key" igual que en mapGrupo
-        const key = `${a["Clases Expositivas"] || ""}|${a["Prácticas de Aula/Semina"] || ""}|${a["Prácticas de Laboratorio"] || ""}|${a["Tutorías Grupales"] || ""}`;
+        for (const row of tabla) {
+            const idAlumno = mapUoToId.get(row.uo);
+            if (idAlumno) {
+                listaNotas.push({
+                    nota: row.nota,
+                    id_alumno: idAlumno,
+                    id_prueba: idPrueba
+                });
+            } else {
+                uosNoEncontrados.push(row.uo);
+            }
+        }
 
-        // Buscar el grupo por esa key (nombre en la BD)
-        const grupo = gruposID.find(g => g.nombre === key);
-
-        return {
-            id_alumno: alumno.id,
-            id_asignatura: idAsignatura,
-            curso_academico: firstTable.find(f => f.clave === "Curso Académico:")?.valor || "",
-            convocatorias: a["Convocatorias"],
-            nota_actual: 0,
-            evaluacion_diferenciada: a["Evaluación Diferenciada"],
-            movilidad_erasmus: a["Movilidad Erasmus"],
-            id_grupo: grupo ? grupo.id : null, // Erasmus o sin grupo
-            matriculas: a["Matrículas"]
-        };
-    }).filter(m => m !== null);
-}
-
-
-
-
+        return { listaNotas, uosNoEncontrados };
+    }
 
 
 

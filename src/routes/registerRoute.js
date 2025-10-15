@@ -1,13 +1,23 @@
 const registerService = require('../service/registerService.js')
+const multer = require('multer');
 const express = require('express')
 const registerRoute = express.Router()
+const upload = multer(); // memoria, no disco
 
+registerRoute.post('/excel', upload.single('file'), async function (req, res) {
+        try {
+                if (!req.file) {
+                        return res.status(400).json({ success:false, message: 'No se ha enviado ningún archivo.', data:[]});
+                }
 
-        registerRoute.get('/excel', async function (req, res) {
-
-                const result = await registerService.registerUsers('C:/Users/aleja/Desktop/TFG/App_Server/src/assets/EjemploListaExcel.xlsx')// EJEMPLO
-                result.success? res.status(200).json({message: result.message, invalidos:result.invalidos, eliminados:result.eliminados, cambiosGrupo:result.cambiosGrupo}):res.status(400).json({message:result.message, invalidos:result.invalidos, eliminados:result.eliminados,cambiosGrupo:result.cambiosGrupo})
-        })
+                const result = await registerService.registerUsers(req.file.buffer);
+                result.success ? res.status(200).json({ success:result.success, message: result.message, data:{invalidos: result.invalidos, eliminados: result.eliminados, cambiosGrupo: result.cambiosGrupo} }) :
+                res.status(400).json({ success:result.success,message: result.message, data:{invalidos: result.invalidos, eliminados: result.eliminados, cambiosGrupo: result.cambiosGrupo} })
+        } catch (error) {
+                console.error('Error al procesar el Excel:', error);
+                res.status(500).json({ success: false, message: 'Error interno al procesar el Excel.', data: [] });
+        }
+})
 
 
 module.exports = registerRoute

@@ -2,8 +2,8 @@ const XLSX = require("xlsx");
 
 const jsonConverter = {
 
-    excelToJson: (data) => {
-        const workbook = XLSX.readFile(data);
+    excelToJsonRegister: (data) => {
+        const workbook = XLSX.read(data, { type: "buffer" });
         // Obtener primera hoja
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
@@ -34,8 +34,34 @@ const jsonConverter = {
         }
 
         return { Asignatura: firstTable, Alumnos: secondTable }
+    },
+
+    excelToJsonNotas: (buffer, idPrueba) => {
+        // Leer el Excel directamente desde el buffer
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        // Convertir a matriz de filas
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const rows = data.slice(1); // quitar cabecera
+
+        const result = [];
+
+        for (const [uo, nota] of rows) {
+            // Si la fila está vacía o sin identificador → detener el bucle
+            if (!uo || String(uo).trim() === "") break;
+
+            // Añadir la fila válida al resultado
+            result.push({
+                uo: String(uo).trim(),
+                nota: parseFloat(nota)
+            });
+        }
+
+        return result;
+
+
     }
-
-
 }
 module.exports = jsonConverter
