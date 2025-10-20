@@ -24,6 +24,7 @@ model alumnos {
   nota               nota[]
   tutorias           tutorias[]
   PasswordResetToken passwordresettoken[]
+  revision_alumno revision_alumno[] @relation(map: "fk_alumno")
 }
 
 model asignaturas {
@@ -59,7 +60,7 @@ model clases {
   nombre          String
   id_asignatura   Int
   id_profesor     Int?
-  asignaturas      asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
+  asignaturas     asignaturas       @relation(fields: [id_asignatura], references: [id], onDelete: Cascade)
   profesores      profesores?       @relation(fields: [id_profesor], references: [id], onDelete: Cascade)
   grupo_clases    grupo_clases[]
   tablon_anuncios tablon_anuncios[] @relation(map: "fk_clases_anuncio")
@@ -137,6 +138,8 @@ model nota {
   id_prueba Int
   alumnos   alumnos @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno_nota")
   pruebas   pruebas @relation(fields: [id_prueba], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prueba_nota")
+
+  @@unique([id_alumno, id_prueba]) // esto asegura que un alumno solo tiene una nota por prueba
 }
 
 model profesores {
@@ -166,6 +169,7 @@ model pruebas {
   id_clase           Int
   nota               nota[]
   clases             clases    @relation(fields: [id_clase], references: [id], onDelete: NoAction, onUpdate: Cascade, map: "fk_clase_prueba")
+  revision revision[] @relation(map: "fk_revision_prueba")
 }
 
 model tablon_anuncios {
@@ -189,6 +193,7 @@ model tutorias {
   hora_fin    DateTime   @db.Time(6)
   id_profesor Int
   id_alumno   Int
+  aceptada    Boolean
   alumnos     alumnos    @relation(fields: [id_alumno], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_alumno")
   profesores  profesores @relation(fields: [id_profesor], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_profesor")
 }
@@ -204,4 +209,23 @@ model passwordresettoken {
   profesores  profesores? @relation(fields: [id_profesor], references: [id], onDelete: Cascade)
 
   @@index([id_alumno]) // para buscar rápido por usuario
+}
+
+model revision {
+  id          Int        @id @default(autoincrement())
+  motivo      String     @db.VarChar(200)
+  fecha       DateTime   @db.Date
+  hora_ini    DateTime   @db.Time(6)
+  hora_fin    DateTime   @db.Time(6)
+  id_prueba   Int
+  prueba      pruebas    @relation(fields: [id_prueba], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_revision_prueba")
+  revision_alumno revision_alumno[]
+}
+
+model revision_alumno {
+  id_revision Int
+  id_alumno   Int
+  revision    revision   @relation(fields: [id_revision], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_revision")
+  alumnos     alumnos    @relation(fields: [id_alumno], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_alumno")
+  @@id([id_revision, id_alumno])
 }

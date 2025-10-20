@@ -15,6 +15,10 @@ const loginRoute = require('./routes/loginRoute.js')
 const tablonAnunciosRoute = require('./routes/tablonAnunciosRoute.js')
 const pruebasRoute = require('./routes/pruebasRoute.js')
 const notasRoute = require('./routes/notasRoute.js')
+const profesorTutoriaRoute = require('./routes/profesorTutoriaRoute.js')
+const alumnoTutoriaRoute = require('./routes/alumnoTutoriaRoute.js')
+
+
 // Importar Middlewares
 //....................
 const authMiddleware = require("./middlewares/authMiddleware.js");
@@ -39,6 +43,8 @@ app.use("/asignaturas-a", authMiddleware, requireRole("alumno"), alumnoAsignatur
 app.use("/anuncios", authMiddleware, tablonAnunciosRoute)
 app.use("/pruebas", authMiddleware,pruebasRoute)
 app.use("/notas", authMiddleware,notasRoute)
+app.use("/tutorias-p", authMiddleware,requireRole("profesor"),profesorTutoriaRoute)
+app.use("/tutorias-a", authMiddleware,requireRole("alumno"),alumnoTutoriaRoute)
 
 
 // -------------------- Middleware de error --------------------

@@ -95,7 +95,7 @@ const tableMaps = {
         const mapUoToId = new Map(alumnos.map(a => [a.uo, a.id]));
 
         const listaNotas = [];
-        const uosNoEncontrados = [];
+        const uosNoInsertados = [];
 
         for (const row of tabla) {
             const idAlumno = mapUoToId.get(row.uo);
@@ -106,11 +106,11 @@ const tableMaps = {
                     id_prueba: idPrueba
                 });
             } else {
-                uosNoEncontrados.push(row.uo);
+                uosNoInsertados.push(row.uo);
             }
         }
 
-        return { listaNotas, uosNoEncontrados };
+        return { listaNotas, uosNoInsertados };
     }
 
 

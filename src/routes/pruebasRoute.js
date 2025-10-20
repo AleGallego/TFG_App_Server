@@ -43,7 +43,7 @@ TareasRoute.post("/publicar", requireRole('profesor'), async function (req, res)
 TareasRoute.put("/modificar/:id", requireRole('profesor'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, nota_minima, peso, fecha_entrega } = req.body;
+        const { nombre, nota_minima, peso, fecha_entrega } = req.body || {};
         const myId = req.user.id
 
         if (!id) {

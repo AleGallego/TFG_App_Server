@@ -30,4 +30,45 @@ notasRoute.post("/publicar", requireRole("profesor"), upload.single('file'), asy
 
 });
 
+// Obtener todas las notas de una prueba
+notasRoute.get("/prueba/:idPrueba", requireRole("profesor"), async (req, res) => {
+    try {
+        const idPrueba = parseInt(req.params.idPrueba, 10);
+
+        if (isNaN(idPrueba)) {
+            return res.status(400).json({ success: false, message: "ID de prueba inválido.", data: [] });
+        }
+
+        const result = await notasService.getNotasByPrueba(idPrueba);
+        return result.success ? res.status(200).json(result) : res.status(400).json(result)
+
+
+    } catch (error) {
+        console.error("Error al obtener notas de la prueba:", error);
+        res.status(500).json({ success: false, message: "Error interno al obtener notas.", data: [] });
+    }
+});
+
+// PATCH para actualizar una nota concreta
+notasRoute.patch("/actualizar", requireRole("profesor"), async (req, res) => {
+    try {
+        const { id_nota, nota } = req.body || {}
+
+        if (id_nota === undefined || nota === undefined) {
+            return res.status(400).json({ success: false, message: "Faltan parámetros.", data: [] });
+        }
+
+        const result = await notasService.actualizarNota(id_nota, nota);
+
+        return result.success
+            ? res.status(200).json(result)
+            : res.status(400).json(result);
+
+    } catch (error) {
+        console.error("Error al actualizar la nota:", error);
+        res.status(500).json({ success: false, message: "Error interno al actualizar la nota.", data: [] });
+    }
+});
+
+
 module.exports = notasRoute
