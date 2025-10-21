@@ -30,6 +30,41 @@ function validarDatos(id_profesor, motivo, fecha, duracion, id_prueba) {
     return { success: true, data: { fechaObj, duracionInt } };
 }
 
+// Comprobar que la prueba existe y que la clase pertenece al profesor
+async function validarPruebaYProfesor(id_prueba, id_profesor) {
+    const prueba = await prisma.pruebas.findUnique({
+        where: { id: parseInt(id_prueba) },
+        include: { clases: true }
+    });
+
+    if (!prueba) {
+        return { success: false, message: "La prueba especificada no existe.", data: [] };
+    }
+
+    if (prueba.clases.id_profesor !== id_profesor) {
+        return { success: false, message: "No tienes permisos para crear revisiones sobre esta prueba.", data: [] };
+    }
+
+    return { success: true };
+}
+
+async function comprobarRevisionDuplicada(fechaObj, id_profesor) {
+    const revisionesExistentes = await prisma.revision.findMany({
+        where: {
+            prueba: {
+                clases: { id_profesor: id_profesor }
+            },
+            fecha: fechaObj
+        }
+    });
+
+    if (revisionesExistentes.length > 0) {
+        return { success: false, message: "Ya existe una revisión para ese día.", data: [] };
+    }
+
+    return { success: true };
+}
+
 // =================== SERVICE ===================
 const profesorRevisionService = {
 
@@ -38,38 +73,26 @@ const profesorRevisionService = {
             // Validar los datos
             const validacion = validarDatos(id_profesor, motivo, fecha, duracion, id_prueba);
             if (!validacion.success) return validacion;
-
             const { fechaObj, duracionInt } = validacion.data;
 
-            // Comprobar que la prueba existe y que la clase pertenece al profesor
-            const prueba = await prisma.pruebas.findUnique({
-                where: { id: parseInt(id_prueba) },
-                include: {
-                    clases: true 
-                }
-            });
-
-            if (!prueba) {
-                return { success: false, message: "La prueba especificada no existe.", data: [] };
-            }
-
-            // Comprobamos que el profesor de la clase coincide con el profesor logueado
-            if (prueba.clases.id_profesor !== id_profesor) {
-                return { success: false, message: "No tienes permisos para crear revisiones sobre esta prueba.", data: [] };
-            }
+            // Validar prueba y profesor
+            const validacionPrueba = await validarPruebaYProfesor(id_prueba, id_profesor);
+            if (!validacionPrueba.success) return validacionPrueba;
 
             // Evitar duplicados en la misma fecha para este profesor
-            const revisionesExistentes = await prisma.revision.findMany({
-                where: {
-                    prueba: {
-                        clases: { id_profesor: id_profesor }
-                    },
-                    fecha: fechaObj
-                }
+            const duplicado = await comprobarRevisionDuplicada(fechaObj, id_profesor);
+            if (!duplicado.success) return duplicado;
+
+            // Obtener el día de la semana de la fecha (1=lunes, 2=martes,...)
+            const diaSemana = fechaObj.getDay();
+
+            // Buscar en horario_tutoria del profesor si tiene horas definidas para ese día
+            const horarioProfesor = await prisma.horario_tutoria.findMany({
+                where: { id_profesor, dia: diaSemana }
             });
 
-            if (revisionesExistentes.length > 0) {
-                return { success: false, message: "Ya existe una revisión para ese día.", data: [] };
+            if (!horarioProfesor || horarioProfesor.length === 0) {
+                return { success: false, message: "El día elegido no coincide con su horario de tutorías.", data: [] };
             }
 
             // Crear la revisión
