@@ -34,4 +34,19 @@ profesorRevisionRoute.get("/pendientes", async (req, res) => {
     }
 });
 
+profesorRevisionRoute.delete('/borrar', async (req, res) => {
+    const id_profesor = req.user.id;
+    const { id_revision } = req.body || {}
+    if (!id_revision)
+        return res.status(400).json({ success: false, message: "No se ha pasado la revisión correctamente", data: [], });
+
+    try {
+        const result = await profesorRevisionService.borrarRevision(id_profesor, id_revision);
+        return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Error interno al borrar la revisión.", data: [], });
+    }
+});
+
 module.exports = profesorRevisionRoute

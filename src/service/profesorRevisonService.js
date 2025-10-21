@@ -156,6 +156,41 @@ const profesorRevisionService = {
             };
         }
     },
+
+    borrarRevision: async (id_profesor, id_revision) => {
+        try {
+            // Comprobar que la revisión existe y pertenece al profesor
+            const revision = await prisma.revision.findUnique({
+                where: { id: parseInt(id_revision) },
+                include: {
+                    prueba: {
+                        include: {
+                            clases: true
+                        }
+                    }
+                }
+            });
+
+            if (!revision) {
+                return { success: false, message: "La revisión no existe.", data: [] };
+            }
+
+            if (revision.prueba.clases.id_profesor !== id_profesor) {
+                return { success: false, message: "No tienes permisos para borrar esta revisión.", data: [] };
+            }
+
+            // Borrar la revisión
+            await prisma.revision.delete({
+                where: { id: parseInt(id_revision) }
+            });
+
+            return { success: true, message: "Revisión borrada correctamente.", data: [] };
+
+        } catch (error) {
+            console.error("Error en profesorRevisionService.borrarRevision:", error);
+            return { success: false, message: "Error interno al borrar la revisión.", data: [] };
+        }
+    }
 };
 
 module.exports = profesorRevisionService;
