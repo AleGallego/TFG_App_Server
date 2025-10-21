@@ -27,7 +27,6 @@ const alumnoAsignaturasService = {
         }
     },
 
-
     // obtener todas las pruebas con nota de una asignatura concreta
     getPruebasConNotas: async (id_alumno, id_asignatura) => {
         try {
