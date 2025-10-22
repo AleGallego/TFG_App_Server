@@ -66,7 +66,7 @@ async function validarPruebaYProfesor(id_prueba, id_profesor) {
 }
 
 // Comprobar que no existan otras revisiones en los mismo días
-async function comprobarSolapamientos(id_profesor, franjas) {
+async function comprobarSolapamientos(id_profesor, franjas, idsExcluir = []) {
     const conflictos = [];
 
     for (const franja of franjas) {
@@ -79,6 +79,8 @@ async function comprobarSolapamientos(id_profesor, franjas) {
                     }
                 },
                 dia: franja.diaObj,
+                // Excluir las franjas con IDs especificados
+                NOT: idsExcluir.length > 0 ? { id: { in: idsExcluir } } : undefined,
                 OR: [
                     {
                         hora_ini: { lt: franja.horaFinObj },
@@ -101,6 +103,89 @@ async function comprobarSolapamientos(id_profesor, franjas) {
 
     return { success: true };
 }
+
+async function procesarHorariosRevision(horario, id_profesor, revisionExistente) {
+
+    const horariosProcesados = [];
+
+    for (const h of horario) {
+        // Validar campos obligatorios
+        if (!h.dia || !h.hora_ini || !h.hora_fin) {
+            return { success: false, message: "Cada horario debe tener dia, hora_ini y hora_fin.", data: [] };
+        }
+
+        // Convertir a objetos Date
+        const diaObj = new Date(h.dia);
+        const horaIniObj = new Date(h.hora_ini);
+        const horaFinObj = new Date(h.hora_fin);
+
+        // Validar fechas/hours
+        if (isNaN(diaObj.getTime()) || isNaN(horaIniObj.getTime()) || isNaN(horaFinObj.getTime())) {
+            return { success: false, message: `Formato inválido para día u hora (${h.dia}, ${h.hora_ini}, ${h.hora_fin}).`, data: [] };
+        }
+
+        // Validar que hora_ini < hora_fin
+        if (horaIniObj >= horaFinObj) {
+            return { success: false, message: `Hora de inicio debe ser anterior a hora de fin (${h.hora_ini} - ${h.hora_fin}).`, data: [] };
+        }
+
+        // Guardar los objetos Date en la franja
+        h.diaObj = diaObj;
+        h.horaIniObj = horaIniObj;
+        h.horaFinObj = horaFinObj;
+
+        horariosProcesados.push(h);
+    }
+    // Comprobar solapamientos internos
+    const internos = comprobarSolapamientosInternos(horariosProcesados);
+    if (!internos.success) return internos;
+
+    // Comprobar solapamientos con otras revisiones en la BD
+    const idsHorariosAExcluir = horario.filter(h => h.id).map(h => h.id); // solo las que se están actualizando
+    const solapamientos = await comprobarSolapamientos(id_profesor, horariosProcesados, idsHorariosAExcluir
+    );
+    if (!solapamientos.success) return solapamientos;
+
+    return { success: true, data: horariosProcesados };
+}
+
+function comprobarSolapamientosInternos(franjas) {
+    const conflictos = [];
+
+    // Recorremos todas las combinaciones de franjas
+    for (let i = 0; i < franjas.length; i++) {
+        for (let j = i + 1; j < franjas.length; j++) {
+            const a = franjas[i];
+            const b = franjas[j];
+
+            // Comprobar si están en el mismo día
+            if (a.dia === b.dia) {
+                // Comprobar solapamiento
+                const solapan =
+                    a.horaIniObj < b.horaFinObj && a.horaFinObj > b.horaIniObj;
+
+                if (solapan) {
+                    conflictos.push({
+                        dia: a.dia,
+                        franjaA: { hora_ini: a.hora_ini, hora_fin: a.hora_fin },
+                        franjaB: { hora_ini: b.hora_ini, hora_fin: b.hora_fin },
+                    });
+                }
+            }
+        }
+    }
+
+    if (conflictos.length > 0) {
+        return {
+            success: false,
+            message: "Las franjas horarias introducidas se solapan entre sí.",
+            data: conflictos,
+        };
+    }
+
+    return { success: true };
+}
+
 
 // =================== SERVICE ===================
 const profesorRevisionService = {
@@ -146,17 +231,15 @@ const profesorRevisionService = {
     },
 
     obtenerRevisionesPendientes: async (id_profesor) => {
-        const ahora = new Date(); // fecha/hora actual
+        const ahora = new Date();
 
         try {
             const revisiones = await prisma.revision.findMany({
                 where: {
                     prueba: {
-                        clases: { id_profesor: id_profesor } // solo revisiones de clases del profesor
-                    },
-                    fecha: { gte: ahora } // solo revisiones futuras
+                        clases: { id_profesor }
+                    }
                 },
-                orderBy: { fecha: 'asc' }, // ordenadas por fecha
                 include: {
                     prueba: {
                         select: {
@@ -170,6 +253,7 @@ const profesorRevisionService = {
                             }
                         }
                     },
+                    horario_revision: true,
                     revision_alumno: {
                         include: {
                             alumnos: {
@@ -180,12 +264,20 @@ const profesorRevisionService = {
                 }
             });
 
-            return { success: true, message: `Se han encontrado ${revisiones.length} revisiones pendientes.`, data: revisiones, };
+            // Filtrar franjas futuras
+            const revisionesPendientes = revisiones.map(r => {
+                const franjasFuturas = r.horario_revision.filter(h => {
+                    const inicio = new Date(h.dia);
+                    inicio.setHours(h.hora_ini.getHours(), h.hora_ini.getMinutes(), 0, 0);
+                    return inicio >= ahora;
+                });
+                return { ...r, horario_revision: franjasFuturas };
+            }).filter(r => r.horario_revision.length > 0); // eliminar revisiones sin franjas futuras
+
+            return { success: true, message: `Se han encontrado ${revisionesPendientes.length} revisiones pendientes.`, data: revisionesPendientes, };
         } catch (error) {
             console.error("Error en obtenerRevisionesPendientes:", error);
-            return {
-                success: false, message: "Error al obtener las revisiones pendientes.", data: [],
-            };
+            return { success: false, message: "Error al obtener las revisiones pendientes.", data: [], };
         }
     },
 
@@ -222,7 +314,122 @@ const profesorRevisionService = {
             console.error("Error en profesorRevisionService.borrarRevision:", error);
             return { success: false, message: "Error interno al borrar la revisión.", data: [] };
         }
-    }
+    },
+
+    actualizarRevision: async (id_revision, duracion, horario, id_profesor) => {
+        if (!id_revision) {
+            return { success: false, message: "El id_revision es obligatorio.", data: [] };
+        }
+
+        try {
+            // Comprobar que la revisión existe
+            const revisionExistente = await prisma.revision.findUnique({
+                where: { id: parseInt(id_revision) },
+                include: {
+                    horario_revision: true,
+                    prueba: {
+                        include: {
+                            clases: true
+                        }
+                    }
+                }
+            });
+            if (!revisionExistente) {
+                return { success: false, message: "La revisión especificada no existe.", data: [] };
+            }
+
+            // Validar duración si viene
+            let duracionInt = revisionExistente.duracion;
+            if (duracion !== undefined) {
+                duracionInt = parseInt(duracion);
+                if (isNaN(duracionInt) || duracionInt <= 0) {
+                    return { success: false, message: "La duración debe ser un número entero positivo (en minutos).", data: [] };
+                }
+            }
+
+            // Preparar operaciones de horario si vienen
+            let horariosProcesados = [];
+            if (horario && horario.length > 0) {
+                // Validación de franjas
+                const resultadoHorarios = await procesarHorariosRevision(horario, id_profesor, revisionExistente);
+                if (!resultadoHorarios.success) return resultadoHorarios;
+
+                horariosProcesados = resultadoHorarios.data;
+            }
+
+            // Transacción: actualizar duración + horarios
+            const updatedRevision = await prisma.$transaction(async (tx) => {
+                // Actualizar duración
+                await tx.revision.update({
+                    where: { id: parseInt(id_revision) },
+                    data: { duracion: duracionInt }
+                });
+
+                if (horariosProcesados.length > 0) {
+                    // Crear/actualizar franjas
+                    for (const h of horariosProcesados) {
+                        if (h.id) {
+                            // Actualizar franja existente
+                            await tx.horario_revision.update({
+                                where: { id: h.id },
+                                data: { dia: h.diaObj, hora_ini: h.horaIniObj, hora_fin: h.horaFinObj }
+                            });
+                        } else {
+                            // Crear nueva franja
+                            await tx.horario_revision.create({
+                                data: { id_revision: parseInt(id_revision), dia: h.diaObj, hora_ini: h.horaIniObj, hora_fin: h.horaFinObj }
+                            });
+                        }
+                    }
+
+                }
+
+                return tx.revision.findUnique({
+                    where: { id: parseInt(id_revision) },
+                    include: { horario_revision: true }
+                });
+            });
+
+            return { success: true, message: "Revisión actualizada correctamente.", data: updatedRevision };
+
+        } catch (error) {
+            console.error("Error en actualizarRevisionConHorarios:", error);
+            return { success: false, message: "Error interno al actualizar la revisión.", data: [] };
+        }
+
+    },
+
+    eliminarFranjaHorario: async (id_horario, id_profesor) => {
+        try {
+
+            
+            // Comprobar que la franja existe y pertenece al profesor
+            const franja = await prisma.horario_revision.findUnique({
+                where: { id: id_horario },
+                include: { revision: { include: { prueba: { include: { clases: true } } } } }
+            });
+
+            if (!franja) {
+                return { success: false, message: "La franja horaria no existe.", data: [] };
+            }
+
+            if (franja.revision.prueba.clases.id_profesor !== id_profesor) {
+                return { success: false, message: "No tienes permisos para eliminar esta franja.", data: [] };
+            }
+
+            // Eliminar la franja
+            await prisma.horario_revision.delete({
+                where: { id: id_horario }
+            });
+
+            return { success: true, message: "Franja horaria eliminada correctamente.", data: { id_horario } };
+
+        } catch (error) {
+            console.error("Error en eliminarFranjaHorario:", error);
+            return { success: false, message: "Error interno al eliminar la franja horaria.", data: [] };
+        }
+    },
+
 };
 
 module.exports = profesorRevisionService;
