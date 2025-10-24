@@ -18,6 +18,7 @@ const notasRoute = require('./routes/notasRoute.js')
 const profesorTutoriaRoute = require('./routes/profesorTutoriaRoute.js')
 const alumnoTutoriaRoute = require('./routes/alumnoTutoriaRoute.js')
 const profesorRevisionRoute = require('./routes/profesorRevisionRoute.js')
+const alumnoRevisionRoute = require('./routes/alumnoRevisionRoute.js')
 
 
 // Importar Middlewares
@@ -47,6 +48,7 @@ app.use("/notas", authMiddleware,notasRoute)
 app.use("/tutorias-p", authMiddleware,requireRole("profesor"),profesorTutoriaRoute)
 app.use("/tutorias-a", authMiddleware,requireRole("alumno"),alumnoTutoriaRoute)
 app.use("/revision-p", authMiddleware,requireRole("profesor"),profesorRevisionRoute)
+app.use("/revision-a", authMiddleware,requireRole("alumno"),alumnoRevisionRoute)
 
 
 // -------------------- Middleware de error --------------------

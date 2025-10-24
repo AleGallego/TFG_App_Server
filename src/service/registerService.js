@@ -165,7 +165,7 @@ async function asociarGrupoClases(gruposUnicos, gruposID, clasesID, ) {
 // Función para validar un alumno   (IR AMPLIANDO)
 function validateAlumno(a) {
     const errores = [];
-    if (!a.uo || a.uo.length !== 8) errores.push("UO debe tener 8 caracteres");
+    //if (!a.uo || a.uo.length !== 8) errores.push("UO debe tener 8 caracteres"); //VOLVER A ACTIVAR (PRUEBAS)
     if (!a.correo || !/^[\w-.]+@[\w-]+\.[a-z]{2,4}$/i.test(a.correo)) errores.push("Correo inválido");
     if (!a.dni || !/^\d{8}[A-Z]$/i.test(a.dni)) errores.push("DNI inválido");
     return errores;

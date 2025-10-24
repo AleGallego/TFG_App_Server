@@ -16,7 +16,7 @@ model alumnos {
   telefono           String?              @db.VarChar(20)
   fecha_ingreso      DateTime             @db.Date
   matricula_activa   Boolean?             @default(true)
-  uo                 String               @db.VarChar(8)
+  uo                 String               @db.VarChar(38) //CAMBIAR PRUEBAS
   contraseña        String?              @db.VarChar(400)
   historial_grupo    historial_grupo[]
   matricula          matricula[]

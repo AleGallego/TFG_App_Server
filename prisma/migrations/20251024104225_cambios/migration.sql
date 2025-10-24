@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "alumnos" ALTER COLUMN "uo" SET DATA TYPE VARCHAR(38);
