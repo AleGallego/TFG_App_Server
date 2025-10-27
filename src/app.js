@@ -20,18 +20,20 @@ const alumnoTutoriaRoute = require('./routes/alumnoTutoriaRoute.js')
 const profesorRevisionRoute = require('./routes/profesorRevisionRoute.js')
 const alumnoRevisionRoute = require('./routes/alumnoRevisionRoute.js')
 
-
 // Importar Middlewares
 //....................
 const authMiddleware = require("./middlewares/authMiddleware.js");
 const requireRole = require('./middlewares/rolesMiddleware.js')
 
-
-
 const app = express();
 
 // -------------------- Middlewares globales --------------------
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173", // <-- URL del frontend
+    credentials: true,               // <-- permite enviar cookies
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -49,7 +51,6 @@ app.use("/tutorias-p", authMiddleware,requireRole("profesor"),profesorTutoriaRou
 app.use("/tutorias-a", authMiddleware,requireRole("alumno"),alumnoTutoriaRoute)
 app.use("/revision-p", authMiddleware,requireRole("profesor"),profesorRevisionRoute)
 app.use("/revision-a", authMiddleware,requireRole("alumno"),alumnoRevisionRoute)
-
 
 // -------------------- Middleware de error --------------------
 // Middleware para manejar rutas no encontradas

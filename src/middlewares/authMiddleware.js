@@ -6,7 +6,7 @@ function authMiddleware(req, res, next) {
     // 1️ Leer la cookie 
     const token = req.cookies.token;
     if (!token) {
-      return res.status(401).json({ success: false, error: "No autenticado" });
+      return res.status(401).json({ success: false, message: "No autenticado" });
     }
 
     // Verificar JWT
@@ -19,7 +19,7 @@ function authMiddleware(req, res, next) {
     next();
   } catch (err) {
     console.error("Error en authMiddleware:", err);
-    return res.status(401).json({ success: false, error: "Token inválido o expirado" });
+    return res.status(401).json({ success: false, message: "Token inválido o expirado" });
   }
 }
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const loginService = require('../service/loginService.js')
+const authMiddleware = require("../middlewares/authMiddleware.js");
 
 const loginRoute = express.Router();
 
@@ -13,11 +14,12 @@ loginRoute.post("/", async (req, res) => {
         const result = await loginService.login(correo, contraseña)
 
         if (!result.success) {
-            res.status(401).json({ success: result.success, message: result.message })
+            console.log(result)
+            res.status(401).json( result )
         }
         else {
 
-            res.cookie("token", result.data, {
+            res.cookie("token", result.data.token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production", // solo HTTPS en prod
                 sameSite: "strict",
@@ -25,7 +27,7 @@ loginRoute.post("/", async (req, res) => {
             });
 
             res.status(200).json({
-                success: result.success, message: result.message
+                success: result.success, message: result.message, data: result.data.returnUser
             });
 
         }
@@ -37,11 +39,23 @@ loginRoute.post("/", async (req, res) => {
     }
 });
 
-
 // GET /logout
 loginRoute.get("/logout", (req, res) => {
-  res.clearCookie("token");
-  res.status(200).json({ success: true, message: "Sesión cerrada correctamente" });
+    res.clearCookie("token");
+    res.status(200).json({ success: true, message: "Sesión cerrada correctamente" });
+});
+
+loginRoute.get('/me', authMiddleware, async (req, res) => {
+    try {
+
+        const { correo,rol } = req.user
+        const result = await loginService.loginCheck(correo,rol)
+        return !result.success?res.status(401).json(result):res.status(200).json(result)
+
+    } catch (err) {
+        console.error('Error en /me:', err);
+        return res.status(401).json({ success: false, message: 'Token inválido o expirado.' });
+    }
 });
 
 module.exports = loginRoute;
