@@ -4,13 +4,24 @@ const alumnoAsignaturasService = {
 
     getMyAsignaturas: async (myId) => {
         const asignaturas = await prisma.asignaturas.findMany({
-            select: { id: true, nombre: true, curso: true },
             where: {
                 matricula: {
-                    some: { id_alumno: myId }
-                }
-            }
-        })
+                    some: { id_alumno: myId },
+                },
+            },
+            select: {
+                id: true,
+                nombre: true,
+                curso: true,
+                matricula: {
+                    where: { id_alumno: myId }, // 🔹 solo la matrícula de este alumno
+                    select: {
+                        nota_actual: true,
+                    },
+                },
+            },
+        });
+
         if (asignaturas.length === 0) {
             return {
                 success: false,
@@ -64,6 +75,7 @@ const alumnoAsignaturasService = {
                 include: {
                     clases: {
                         select: {
+                            id:true,
                             nombre: true,
                             asignaturas: { select: { nombre: true } }
                         }
@@ -77,19 +89,20 @@ const alumnoAsignaturasService = {
             });
 
             if (pruebas.length === 0) {
-                return {success: false,message: "No hay pruebas publicadas para esta asignatura",data: []};
+                return { success: false, message: "No hay pruebas publicadas para esta asignatura", data: [] };
             }
 
             // Formateamos la salida para mayor claridad
             const data = pruebas.map(p => ({
                 id: p.id,
                 nombre: p.nombre,
+                peso:p.peso,
                 fecha_entrega: p.fecha_entrega,
                 nota_minima: p.nota_minima,
                 nota_alumno: p.nota.length > 0 ? p.nota[0].nota : null
             }));
 
-            return {success: true,message: "Pruebas obtenidas correctamente",data:data};
+            return { success: true, message: "Pruebas obtenidas correctamente", data: data };
 
         } catch (error) {
             console.error("Error en getPruebasConNotas:", error);
