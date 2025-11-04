@@ -4,7 +4,22 @@ const alumnoAsignaturasService = require('../service/alumnoAsignaturasService')
 
 
 
-alumnoAsignaturasRoute.get('/misAsignaturas', async function (req, res) {
+alumnoAsignaturasRoute.get('/misClasesAsignaturas', async function (req, res) {
+    try {
+        const result = await alumnoAsignaturasService.getMyClasesAsignaturas(req.user.id)
+        if (!result.success) return res.status(400).json(result);
+        res.status(200).json(result);
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: "No se pudo procesar la solicitud en el servidor",
+            data: []
+        });
+        console.error(err);
+    }
+})
+
+/*alumnoAsignaturasRoute.get('/misAsignaturas', async function (req, res) {
     try {
         const result = await alumnoAsignaturasService.getMyAsignaturas(req.user.id)
         if (!result.success) return res.status(400).json(result);
@@ -18,6 +33,7 @@ alumnoAsignaturasRoute.get('/misAsignaturas', async function (req, res) {
         console.error(err);
     }
 })
+    */
 
 // Pruebas (con nota) del alumno en una asignatura concreta
 alumnoAsignaturasRoute.get('/misAsignaturas/:id_asignatura/pruebas', async function (req, res) {
@@ -26,11 +42,7 @@ alumnoAsignaturasRoute.get('/misAsignaturas/:id_asignatura/pruebas', async funct
         const id_asignatura = parseInt(req.params.id_asignatura);
 
         if (!id_asignatura || isNaN(id_asignatura)) {
-            return res.status(422).json({
-                success: false,
-                message: "ID de asignatura no válido",
-                data: []
-            });
+            return res.status(422).json({success: false, message: "ID de asignatura no válido",data: [] });
         }
 
         const result = await alumnoAsignaturasService.getPruebasConNotas(id_alumno, id_asignatura);
