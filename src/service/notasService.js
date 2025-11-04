@@ -7,7 +7,6 @@ const notasService = {
     publicarNotas: async (excelNotas, idPrueba) => {
         try {
 
-
             // Comprobar que la prueba existe
             const prueba = await prisma.pruebas.findUnique({
                 where: { id: idPrueba },
@@ -53,16 +52,25 @@ const notasService = {
             //Mapear las notas con los IDs y detectar los UOs no encontrados
             const { listaNotas, uosNoInsertados } = tableMaps.mapNotas(alumnos, tabla, idPrueba);
 
+
             if (listaNotas.length === 0) {
                 return { success: false, message: "No se pudo insertar ninguna nota. Ningún UO del Excel coincide con los alumnos registrados.", data: [] };
             }
+            // Eliminar duplicados por id_alumno (mantiene la última aparición)
+            const listaNotasUnicas = Object.values(
+                listaNotas.reduce((acc, n) => {
+                    acc[n.id_alumno] = n; // si hay duplicado, sobrescribe
+                    return acc;
+                }, {})
+            );
 
-            // 6️⃣ Insertar o actualizar las notas existentes (upsert)
+
+            // Insertar o actualizar las notas existentes (upsert)
             let insertados = 0;
             let actualizados = 0;
 
             await Promise.all(
-                listaNotas.map(async (n) => {
+                listaNotasUnicas.map(async (n) => {
                     // Intentamos encontrar una nota existente
                     const notaExistente = await prisma.nota.findUnique({
                         where: {
@@ -90,8 +98,16 @@ const notasService = {
                     }
                 })
             );
+            // HAY DUPLICADOS? --> Error profesor
+            const duplicados = listaNotas.length - listaNotasUnicas.length;
+            if (duplicados > 0) {
+                console.warn(`⚠️ Se han encontrado ${duplicados} UOs duplicados en el Excel. Solo se ha tomado la última aparición de cada uno.`);
+            }
+            //Actualizar notas actuales 
+            actualizarNotasActuales(idPrueba);
 
-            // 7️⃣ Respuesta final
+
+            // Respuesta final
             return {
                 success: true,
                 message: "Notas publicadas/actualizadas correctamente.",
@@ -99,6 +115,7 @@ const notasService = {
                     totalExcel: uos.length,
                     insertados,
                     actualizados,
+                    duplicados: duplicados,
                     noInsertados: uosNoInsertados.length,
                     uosNoInsertados
                 }
@@ -153,7 +170,7 @@ const notasService = {
             return { success: false, message: "Error interno en el servidor al obtener notas.", data: [] };
         }
     },
-    
+
     actualizarNota: async (id_nota, valorNota) => {
         try {
             // Comprobar que la nota existe
@@ -179,7 +196,64 @@ const notasService = {
         }
     }
 
-
-
 }
+
+
+async function actualizarNotasActuales(idPrueba) {
+    // Obtener la asignatura de la prueba
+    const prueba = await prisma.pruebas.findUnique({
+        where: { id: idPrueba },
+        select: {
+            id_clase: true,
+            clases: {
+                select: { id_asignatura: true },
+            },
+        },
+    });
+
+    if (!prueba || !prueba.clases) return;
+    const idAsignatura = prueba.clases.id_asignatura;
+
+    // Obtener los alumnos que participaron en esa prueba
+    const notasDeLaPrueba = await prisma.nota.findMany({
+        where: { id_prueba: idPrueba },
+        select: { id_alumno: true },
+    });
+
+    const idsAlumnos = [...new Set(notasDeLaPrueba.map(n => n.id_alumno))];
+    if (idsAlumnos.length === 0) return;
+
+    //  Para cada alumno, recalcular su nota media en la asignatura
+    for (const idAlumno of idsAlumnos) {
+        const notasAlumno = await prisma.nota.findMany({
+            where: {
+                id_alumno: idAlumno,
+                pruebas: {
+                    clases: { id_asignatura: idAsignatura },
+                },
+            },
+            select: {
+                nota: true,
+                pruebas: { select: { peso: true } },
+            },
+        });
+
+        if (notasAlumno.length === 0) continue;
+
+        // Calcular media ponderada
+        const sumaPesos = notasAlumno.reduce((acc, n) => acc + n.pruebas.peso, 0);
+        const mediaPonderada = notasAlumno.reduce((acc, n) => acc + n.nota * n.pruebas.peso, 0) / sumaPesos;
+        // Actualizar la nota_actual en la matrícula correspondiente
+        await prisma.matricula.updateMany({
+            where: {
+                id_alumno: idAlumno,
+                id_asignatura: idAsignatura,
+            },
+            data: { nota_actual: mediaPonderada },
+        });
+    }
+}
+
+
+
 module.exports = notasService

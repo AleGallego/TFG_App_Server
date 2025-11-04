@@ -1,4 +1,5 @@
 const prisma = require("../prismaClient.js");
+const { TIPOS_CLASE } = require("../config/config.js");
 
 const alumnoAsignaturasService = {
 
@@ -37,7 +38,7 @@ where al.id=${myId} AND c.id_asignatura = m.id_asignatura
                     }
                     acc[row.id].clases.push({
                         id: row.id_clase,
-                        tipo:row.tipo,
+                        tipo: row.tipo,
                         nombre: row.nombre,
                         profesor: row.nombre_profesor
                     });
@@ -125,6 +126,7 @@ where al.id=${myId} AND c.id_asignatura = m.id_asignatura
                         select: {
                             id: true,
                             nombre: true,
+                            tipo: true,
                             asignaturas: { select: { nombre: true } }
                         }
                     },
@@ -141,24 +143,33 @@ where al.id=${myId} AND c.id_asignatura = m.id_asignatura
             }
 
             // Formateamos la salida para mayor claridad
-            const data = pruebas.map(p => ({
-                id: p.id,
-                nombre: p.nombre,
-                clase: p.clases.nombre,
-                peso: p.peso,
-                fecha_entrega: p.fecha_entrega,
-                nota_minima: p.nota_minima,
-                nota_alumno: p.nota.length > 0 ? p.nota[0].nota : null
-            }));
-            return { success: true, message: "Pruebas obtenidas correctamente", data: data };
+            return formatoDatosNotas(pruebas)
 
         } catch (error) {
             console.error("Error en getPruebasConNotas:", error);
             return { success: false, message: "Error al obtener las pruebas del alumno", data: [] };
         }
     }
+}
+// Funcion auxiliar
+function formatoDatosNotas(pruebas) {
+    const pruebasFormateadas = pruebas.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        clase: p.clases.nombre,
+        tipo_clase: p.clases.tipo,
+        peso: p.peso,
+        fecha_entrega: p.fecha_entrega,
+        nota_minima: p.nota_minima,
+        nota_alumno: p.nota.length > 0 ? p.nota[0].nota : null
+    }));
 
-
+    // Clasificamos las pruebas por tipo
+    const data = {
+        aula: pruebasFormateadas.filter(p => TIPOS_CLASE.AULA.includes(p.tipo_clase)),
+        laboratorio: pruebasFormateadas.filter(p => TIPOS_CLASE.LABORATORIO.includes(p.tipo_clase))
+    };
+    return { success: true, message: "Pruebas obtenidas correctamente", data: data };
 }
 
 module.exports = alumnoAsignaturasService
