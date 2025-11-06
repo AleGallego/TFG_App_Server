@@ -4,52 +4,82 @@ const { TIPOS_CLASE } = require("../config/config.js");
 const alumnoAsignaturasService = {
 
     getMyClasesAsignaturas: async (myId) => {
-        const asignaturas = await prisma.$queryRaw`
-  select c.tipo,a.id as asignatura_id,a.nombre as asignatura,al.id,c.id as id_clase,c.nombre,m.nota_actual,a.curso,
-  CONCAT(p.nombre, ' ', p.apellidos) AS nombre_profesor from alumnos al
-join matricula m on al.id=m.id_alumno
-join asignaturas a on m.id_asignatura=a.id
-join grupo g on m.id_grupo=g.id
-join grupo_clases gc on g.id=gc.id_grupo
-join clases c on gc.id_clases = c.id
-join profesores p on p.id = c.id_profesor
-where al.id=${myId} AND c.id_asignatura = m.id_asignatura
-  ORDER BY a.id, c.id;
-`;
-
-        if (asignaturas.length === 0) {
-            return {
-                success: false,
-                message: "No se encontraron asignaturas para este alumno.",
-                data: [],
-            };
-        }
-        else {
-            const asignaturasOrdenadas = Object.values(
-                asignaturas.reduce((acc, row) => {
-                    if (!acc[row.id]) {
-                        acc[row.id] = {
-                            id: row.asignatura_id,
-                            nombre: row.asignatura,
-                            curso: row.curso,
-                            nota_actual: row.nota_actual,
-                            clases: [],
-                        };
+        try {
+            const matriculas = await prisma.matricula.findMany({
+                where: { id_alumno: myId },
+                select: {
+                    nota_actual: true,
+                    asignaturas: {
+                        select: {
+                            id: true,
+                            nombre: true,
+                            curso: true,
+                        }
+                    },
+                    grupo: {
+                        select: {
+                            grupo_clases: {
+                                select: {
+                                    clases: {
+                                        select: {
+                                            id: true,
+                                            tipo: true,
+                                            nombre: true,
+                                            id_asignatura: true,
+                                            profesores: {
+                                                select: {
+                                                    id: true,
+                                                    nombre: true,
+                                                    apellidos: true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    acc[row.id].clases.push({
-                        id: row.id_clase,
-                        tipo: row.tipo,
-                        nombre: row.nombre,
-                        profesor: row.nombre_profesor
-                    });
-                    return acc;
-                }, {})
-            );
-            return {
-                success: true,
-                message: "Asignaturas obtenidas correctamente.",
-                data: asignaturasOrdenadas,
-            };
+                }
+            });
+
+            if (!matriculas || matriculas.length === 0) {
+                return {
+                    success: false,
+                    message: "No se encontraron asignaturas para este alumno.",
+                    data: [],
+                };
+            }
+
+            // Formatear los datos como querías (asignatura → clases → profesor)
+            const asignaturasOrdenadas = matriculas.map((mat) => {
+                const clasesFiltradas = mat.grupo.grupo_clases
+                    .map(gc => gc.clases)
+                    // Solo clases que pertenecen a la asignatura actual
+                    .filter(c => c.id_asignatura === mat.asignaturas.id)
+                    .map(c => ({
+                        id: c.id,
+                        tipo: c.tipo,
+                        nombre: c.nombre,
+                        profesor: c.profesores
+                            ? `${c.profesores.nombre} ${c.profesores.apellidos}`
+                            : "Sin profesor asignado"
+                    }));
+
+                return {
+                    id: mat.asignaturas.id,
+                    nombre: mat.asignaturas.nombre,
+                    curso: mat.asignaturas.curso,
+                    nota_actual: mat.nota_actual,
+                    clases: clasesFiltradas
+                };
+            })
+
+
+            return { success: true,message: "Asignaturas obtenidas correctamente.",data: asignaturasOrdenadas,  };
+
+        } catch (error) {
+            console.error("Error en getMyClasesAsignaturas:", error);
+            return {success: false,message: "Error interno al obtener las asignaturas del alumno.",data: [] };
         }
     },
 
@@ -139,7 +169,7 @@ where al.id=${myId} AND c.id_asignatura = m.id_asignatura
             });
 
             if (pruebas.length === 0) {
-                return { success: false, message: "No hay pruebas publicadas para esta asignatura", data: [] };
+                return { success: true, message: "No hay pruebas publicadas para esta asignatura", data: [] };
             }
 
             // Formateamos la salida para mayor claridad

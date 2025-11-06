@@ -57,9 +57,9 @@ async function registrarGrupo(secondTable, idAsignatura) {
     const clasesID = await registrarClases(secondTable, idAsignatura);
 
     // Mapear grupos únicos
-    const grupos = tableMaps.mapGrupo(secondTable,idAsignatura);
+    const grupos = tableMaps.mapGrupo(secondTable, idAsignatura);
     if (!grupos || grupos.length === 0) return { gruposID: [], clasesID };
-    const gruposParaInsert = grupos.map(g => ({ nombre: g.key ,id_asignatura: g.id_asignatura}));
+    const gruposParaInsert = grupos.map(g => ({ nombre: g.key, id_asignatura: g.id_asignatura }));
 
     try {
         await prisma.grupo.createMany({
@@ -114,7 +114,7 @@ async function registrarClases(secondTable, idAsignatura) {
     return clasesID;
 }
 
-async function asociarGrupoClases(gruposUnicos, gruposID, clasesID, ) {
+async function asociarGrupoClases(gruposUnicos, gruposID, clasesID,) {
     const relaciones = []; // { id_grupo, id_clase, id_asignatura }
 
     const tiposOrden = [
@@ -213,11 +213,7 @@ const registerService = {
         });
 
         if (alumnosValidados.length === 0) {
-            return {
-                success: false,
-                message: `No se pudo insertar ningún alumno. Todos los registros tienen errores.`,
-                invalidos: alumnosInvalidos
-            };
+            return { success: false, message: `No se pudo insertar ningún alumno. Todos los registros tienen errores.`, invalidos: alumnosInvalidos };
         }
 
         // Insertar solo los que pasan validación
@@ -242,7 +238,8 @@ const registerService = {
                 id: true
             }
         })
-
+        if (!idAsignatura)
+            return {success: false,message: `La asignatura no existe`, data:[] };
 
         const { nuevasMatriculas, cambiosGrupo } = await registrarMatricula(tablas, alumnosID, idAsignatura);
         const eliminados = await alumnosDesmatriculados(alumnosValidados, idAsignatura.id);
