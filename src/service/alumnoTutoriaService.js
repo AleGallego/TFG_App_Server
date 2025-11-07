@@ -73,13 +73,13 @@ const alumnoTutoriaService = {
 
             const { fechaObj, horaIniObj, horaFinObj } = validacion.data;
 
-            // 2️⃣ Validar día permitido (lunes a viernes)
+            //  Validar día permitido (lunes a viernes)
             const diaSemana = getDiaSemana(fechaObj);
             if (!DIAS_SEMANA.includes(diaSemana)) {
                 return { success: false, message: "Solo se pueden solicitar tutorías de lunes a viernes.", data: [] };
             }
 
-            // 3️⃣ Obtener horarios del profesor para el día
+            // Obtener horarios del profesor para el día
             const horariosProfesor = await prisma.horario_tutoria.findMany({
                 where: { id_profesor, dia: diaSemana }
             });
@@ -88,17 +88,17 @@ const alumnoTutoriaService = {
                 return { success: false, message: "El profesor no tiene horario disponible ese día.", data: [] };
             }
 
-            // 4️⃣ Comprobar que la franja solicitada esté dentro del horario del profesor
+            //  Comprobar que la franja solicitada esté dentro del horario del profesor
             if (!franjaDentroHorario(horaIniObj, horaFinObj, horariosProfesor)) {
                 return { success: false, message: "La franja solicitada no está dentro del horario del profesor.", data: [] };
             }
 
-            // 5️⃣ Comprobar solapamiento con otras tutorías del profesor en la misma fecha
+            //  Comprobar solapamiento con otras tutorías del profesor en la misma fecha
             if (await haySolapamiento(id_profesor, fechaObj, horaIniObj, horaFinObj)) {
                 return { success: false, message: "Ya existe otra tutoría en esa franja horaria.", data: [] };
             }
 
-            // 6️⃣ Insertar la solicitud en la BDD con aceptada = false (pendiente)
+            // Insertar la solicitud en la BDD con aceptada = false (pendiente)
             const nuevaTutoria = await prisma.tutorias.create({
                 data: {
                     motivo,
@@ -137,14 +137,27 @@ const alumnoTutoriaService = {
                     profesores: {
                         select: {
                             id: true,
-                            nombre: true, // nombre del profesor
+                            nombre: true,  
+                            apellidos: true,
                             correo: true
                         }
                     }
                 }
             });
+            // Mapear solo los campos que quieres enviar
+            const tutoriasPlanas = tutorias.map(t => ({
+                id: t.id,
+                fecha: t.fecha.toISOString().split('T')[0], // yyyy-mm-dd
+                hora_ini: t.hora_ini.toISOString().slice(11, 16),
+                hora_fin: t.hora_fin.toISOString().slice(11, 16),
+                motivo: t.motivo,
+                aceptada: t.aceptada,
+                Profesor:  `${t.profesores.nombre} ${t.profesores.apellidos}`,
+                correoProfesor: t.profesores.correo
 
-            return { success: true, message: "Tutorías obtenidas correctamente.", data: tutorias };
+            }));
+
+            return { success: true, message: "Tutorías obtenidas correctamente.", data: tutoriasPlanas };
 
         } catch (error) {
             console.error("Error en alumnoTutoriaService.listarTutorias:", error);
@@ -258,11 +271,11 @@ const alumnoTutoriaService = {
                 hora_fin: h.hora_fin.toISOString().slice(11, 16)
             }));
 
-            return { success: true,message: `Horario del profesor ${profesor.nombre} ${profesor.apellidos} obtenido correctamente.`,data: horarioFormateado };
+            return { success: true, message: `Horario del profesor ${profesor.nombre} ${profesor.apellidos} obtenido correctamente.`, data: horarioFormateado };
 
         } catch (error) {
             console.error("Error en obtenerHorarioProfesor:", error);
-            return {success: false, message: "Error interno al obtener el horario del profesor.",data: [] };
+            return { success: false, message: "Error interno al obtener el horario del profesor.", data: [] };
         }
     }
 
