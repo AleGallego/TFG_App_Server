@@ -2,12 +2,13 @@ const express = require('express')
 const tablonAnunciosRoute = express.Router()
 const tablonAnunciosService = require('../service/tablonAnunciosService')
 const requireRole = require('../middlewares/rolesMiddleware');
-
+const { PAGINACION } = require("../config/config");
 
 tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async function (req, res) {
     try {
         const { titulo, contenido, id_asignatura, id_clase } = req.body;
-        const id_profesor = req.user.id; // viene del token JWT
+        const id_profesor = req.user.id; 
+        
         // Comprobaciones básicas
         if (!titulo || !contenido || !id_asignatura || !id_clase) {
             return res.status(422).json({
@@ -24,7 +25,7 @@ tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async fu
 
         res.status(201).json(result);
     } catch (err) {
-        res.status(500).json({success: false,message: 'Error interno del servidor al crear la publicación',});
+        res.status(500).json({ success: false, message: 'Error interno del servidor al crear la publicación', });
     }
 
 
@@ -34,8 +35,7 @@ tablonAnunciosRoute.post('/profesor/publicar', requireRole('profesor'), async fu
 tablonAnunciosRoute.get('/alumno/uiltimasEntradas', requireRole('alumno'), async function (req, res) {
 
     try {
-        const { limit = 10, offset = 0 } = req.query; // paginación opcional
-
+        const { limit = PAGINACION.DEFAULT_LIMIT, offset = PAGINACION.DEFAULT_OFFSET } = req.query;
         // Llamada al service pasando el id del alumno
         const entradas = await tablonAnunciosService.obtenerEntradasAlumno(
             req.user.id,

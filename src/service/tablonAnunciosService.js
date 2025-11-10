@@ -13,8 +13,14 @@ const tablonAnunciosService = {
             });
 
             if (!asignatura || !clase) {
-                return { success: false, message: 'Asignatura o clase no válida' };
+                return { success: false, message: 'Asignatura o clase no válida', data: [] };
             }
+
+            // Comprobamos que la clase pertenezca a la asignatura
+            if (clase.id_asignatura !== id_asignatura) {
+                return { success: false, message: 'La clase no pertenece a la asignatura seleccionada', data: [] };
+            }
+
 
             // Crear la entrada en el tablón
             const nuevaEntrada = await prisma.tablon_anuncios.create({
@@ -41,7 +47,7 @@ const tablonAnunciosService = {
         }
     },
 
-    obtenerEntradasAlumno: async (id_alumno, limit = 10, offset = 0) => {
+    obtenerEntradasAlumno: async (id_alumno, limit, offset) => {
         try {
             // primero ver las matriculas del alumno con su grupo
             const matriculas = await prisma.matricula.findMany({
@@ -68,8 +74,14 @@ const tablonAnunciosService = {
                 skip: offset,
                 include: {
                     asignaturas: true,
-                    clases: true // <- incluir el nombre de la clase
+                    clases: true // <- incluye el nombre de la clase
                 }
+            });
+
+            // Marcar todos como leídos
+            await prisma.tablon_anuncios.updateMany({
+                where: { id: { in: entradas.map(e => e.id) } },
+                data: { leido: true }
             });
 
             // Formatear resultado para frontend
@@ -79,6 +91,7 @@ const tablonAnunciosService = {
                 clase: e.clases?.nombre || 'Clase desconocida',
                 titulo: e.titulo,
                 contenido: e.contenido,
+                leido:e.leido,
                 createdAt: e.createdAt
             }));
         } catch (err) {
